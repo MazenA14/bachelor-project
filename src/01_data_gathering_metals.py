@@ -25,11 +25,11 @@ print("Initiating data gathering protocol...")
 
 # --- 2. FETCH & SAVE GLOBAL TARGETS (yfinance) ---
 print("Pulling Yahoo Finance data (Gold, Silver, DXY)...")
-tickers = {'Gold': 'GC=F', 'Silver': 'SI=F', 'DXY': 'DX=F'}
+tickers = {'Gold': 'GC=F', 'Silver': 'SI=F', 'DXY': 'DX-Y.NYB'}
 
 # Download 'Close' prices and rename columns safely
 yf_data = yf.download(list(tickers.values()), start=START_DATE, end=END_DATE)['Close']
-yf_data.rename(columns={'GC=F': 'Gold_Close', 'SI=F': 'Silver_Close', 'DX=F': 'DXY_Close'}, inplace=True)
+yf_data.rename(columns={'GC=F': 'Gold_Close', 'SI=F': 'Silver_Close', 'DX-Y.NYB': 'DXY_Close'}, inplace=True)
 
 # THE FIX: Strip timezones from Yahoo Finance so it matches your other data perfectly
 yf_data.index = yf_data.index.tz_localize(None)
