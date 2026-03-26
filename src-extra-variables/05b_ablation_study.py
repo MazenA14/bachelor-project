@@ -61,11 +61,19 @@ print(f"Global Features: {len(X_train_global.columns)}\n")
 
 # --- 5. MODEL TRAINING ---
 print("Training Hybrid Model (All Variables)...")
-xgb_hybrid = xgb.XGBRegressor(n_estimators=1000, learning_rate=0.05, max_depth=5, random_state=42, early_stopping_rounds=50)
+# Before tuning
+# xgb_hybrid = xgb.XGBRegressor(n_estimators=1000, learning_rate=0.05, max_depth=5, random_state=42, early_stopping_rounds=50)
+
+# After tuning
+xgb_hybrid = xgb.XGBRegressor(n_estimators=500, learning_rate=0.01, max_depth=3, subsample=0.8, colsample_bytree=0.8, random_state=42)
 xgb_hybrid.fit(X_train_hybrid, y_train, eval_set=[(X_val_hybrid, y_val)], verbose=False)
 
 print("Training Pure Global Model...")
-xgb_global = xgb.XGBRegressor(n_estimators=1000, learning_rate=0.05, max_depth=5, random_state=42, early_stopping_rounds=50)
+# Before tuning
+# xgb_global = xgb.XGBRegressor(n_estimators=1000, learning_rate=0.05, max_depth=5, random_state=42, early_stopping_rounds=50)
+
+# After tuning
+xgb_global = xgb.XGBRegressor(n_estimators=500, learning_rate=0.01, max_depth=3, subsample=0.8, colsample_bytree=0.8, random_state=42)
 xgb_global.fit(X_train_global, y_train, eval_set=[(X_val_global, y_val)], verbose=False)
 
 # --- 6. ONE-STEP-AHEAD EVALUATION (Mathematical Reversal) ---
