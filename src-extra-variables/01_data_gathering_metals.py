@@ -42,6 +42,9 @@ treasury_10yr = fred.get_series('DGS10', observation_start=START_DATE, observati
 treasury_df = pd.DataFrame(treasury_10yr, columns=['US_10Yr_Yield'])
 treasury_df.index.name = 'Date'
 
+# Save the raw FRED data
+treasury_df.to_csv(os.path.join(RAW_DIR, '01_fred_treasury_10yr.csv'))
+print(f"FRED data secured and saved to {RAW_DIR}")
 
 # --- 4. LOAD & CLEAN EGYPTIAN MACROECONOMICS (Local CSVs) ---
 print("Loading and cleaning local Egyptian CSVs...")
