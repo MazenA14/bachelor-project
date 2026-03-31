@@ -4,7 +4,9 @@
 # Data folder
 data/
 data-extra-variables/
+data-extra-variables-local/
 
 # Models folder
 models/
 models-extra-variables/
+models-extra-variables-local/
