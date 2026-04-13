@@ -46,41 +46,7 @@ treasury_10yr = fred.get_series('DGS10', observation_start=START_DATE, observati
 treasury_df = pd.DataFrame(treasury_10yr, columns=['US_10Yr_Yield'])
 treasury_df.index.name = 'Date'
 
-# --- 4. LOAD & CLEAN EGYPTIAN MACROECONOMICS (Reusing Local CSVs) ---
-print("Loading local Egyptian CSVs (from the local folder)...")
-# We point backwards to grab the CSVs you already downloaded for Gold
-LOCAL_CSV_DIR = '../data-extra-variables-local/01_raw/'
-egp_usd_path = os.path.join(LOCAL_CSV_DIR, '01_USD_EGP_Historical_Data.csv')
-egypt_inflation_path = os.path.join(LOCAL_CSV_DIR, '01_Egypt_Inflation_CBE.csv')
-egypt_interest_path = os.path.join(LOCAL_CSV_DIR, '01_Overnight_deposit_rate.csv')
 
-try:
-    # A. EGP/USD 
-    egp_usd_df = pd.read_csv(egp_usd_path, usecols=['Date', 'Price'])
-    egp_usd_df['Price'] = egp_usd_df['Price'].astype(str).str.replace(',', '').astype(float)
-    egp_usd_df['Date'] = pd.to_datetime(egp_usd_df['Date'], format='%m/%d/%Y')
-    egp_usd_df.rename(columns={'Price': 'EGP_USD_Close'}, inplace=True)
-    egp_usd_df.set_index('Date', inplace=True)
-
-    # B. Inflation 
-    inflation_df = pd.read_csv(egypt_inflation_path, usecols=['Date', 'Headline (y/y)'])
-    inflation_df['Headline (y/y)'] = inflation_df['Headline (y/y)'].astype(str).str.replace('%', '').astype(float)
-    inflation_df['Date'] = inflation_df['Date'].astype(str).str.replace('Sept-', 'Sep-', regex=False)
-    inflation_df['Date'] = pd.to_datetime(inflation_df['Date'], format='%b-%y')
-    inflation_df.rename(columns={'Headline (y/y)': 'Egypt_Inflation_YoY'}, inplace=True)
-    inflation_df.set_index('Date', inplace=True)
-
-    # C. CBE Interest Rate 
-    interest_df = pd.read_csv(egypt_interest_path, usecols=['Date', 'Overnight Deposit Rate'])
-    interest_df['Overnight Deposit Rate'] = interest_df['Overnight Deposit Rate'].astype(str).str.replace('%', '').astype(float)
-    interest_df['Date'] = interest_df['Date'].astype(str).str.replace('-Sept-', '-Sep-', regex=False)
-    interest_df['Date'] = pd.to_datetime(interest_df['Date'], format='%d-%b-%y')
-    interest_df.rename(columns={'Overnight Deposit Rate': 'CBE_Interest_Rate'}, inplace=True)
-    interest_df.set_index('Date', inplace=True)
-
-except FileNotFoundError as e:
-    print(f"⚠️ Error: Could not find Egyptian CSV files. Details: {e}")
-    print("Ensure the local CSVs are present in '../data-extra-variables-local/01_raw/'")
 
 # --- 5. THE MASTER MERGE & FORWARD-FILL ---
 print("\nInitiating Master Merge...")
@@ -89,9 +55,6 @@ master_df = pd.DataFrame(index=master_timeline)
 
 master_df = master_df.join(yf_data)
 master_df = master_df.join(treasury_df)
-master_df = master_df.join(egp_usd_df)
-master_df = master_df.join(inflation_df)
-master_df = master_df.join(interest_df)
 
 # Forward fill pushes weekend stock prices and monthly macro rates forward
 master_df.ffill(inplace=True)
