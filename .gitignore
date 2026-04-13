@@ -5,8 +5,10 @@
 data/
 data-extra-variables/
 data-extra-variables-local/
+data-energy/
 
 # Models folder
 models/
 models-extra-variables/
 models-extra-variables-local/
+models-energy/
