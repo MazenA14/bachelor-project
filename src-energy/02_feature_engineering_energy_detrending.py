@@ -1,17 +1,25 @@
+# =============================================================================
+# PIPELINE IDENTITY
+#   Stationarity Method : DETRENDING  (Linear Regression residuals: y - trend)
+#   Extra Features      : YES (Lag T-1/T-3/T-7, 14-Day Rolling Avg, Cross-Feature)
+#   Output dataset      : 01b_engineered_detrending_energy_dataset.csv
+#   Used by             : 03_model_training_engineered.py  (XGBoost Architecture B)
+#                         04a / 04b evaluation scripts
+# =============================================================================
 import os
 import pandas as pd
 import numpy as np
 from sklearn.linear_model import LinearRegression
 
 # --- 1. CONFIGURATION & DIRECTORY SETUP ---
-PROCESSED_DIR = '../data/02_processed/'
-FINAL_DIR = '../data/03_final/'
+PROCESSED_DIR = '../data-energy/02_processed/'
+FINAL_DIR = '../data-energy/03_final/'
 
 # Ensure the final output directory exists
 os.makedirs(FINAL_DIR, exist_ok=True)
 
-input_file = os.path.join(PROCESSED_DIR, '01_master_metals_dataset.csv')
-output_file = os.path.join(FINAL_DIR, '01b_engineered_detrending_metals_dataset.csv')
+input_file = os.path.join(PROCESSED_DIR, '01_master_energy_dataset.csv')
+output_file = os.path.join(FINAL_DIR, '01b_engineered_detrending_energy_dataset.csv')
 
 print("Initiating Architecture B Feature Engineering (Detrending)...")
 
@@ -25,7 +33,8 @@ except FileNotFoundError:
 
 # --- 3. STATIONARITY (LINEAR DETRENDING) ---
 print("Calculating Linear Trends and Extracting Residuals...")
-columns_to_detrend = ['Gold_Close', 'Silver_Close', 'DXY_Close', 'EGP_USD_Close']
+# Detrend price-based columns; US_10Yr_Yield is already a rate and is left as-is
+columns_to_detrend = ['Brent_Crude_Close', 'Natural_Gas_Close', 'DXY_Close', 'VIX_Close', 'SP500_Close', 'EGP_USD_Close']
 
 # Create an X-axis representing the flow of time (0, 1, 2, 3... to the end of the dataset)
 # We must reshape it to a 2D array because scikit-learn requires it.
@@ -34,23 +43,23 @@ time_index = np.arange(len(df)).reshape(-1, 1)
 for col in columns_to_detrend:
     # Instantiate the standard linear equation: y = mx + b
     lr_model = LinearRegression()
-    
+
     # Grab the actual prices (Y-axis)
     y_actual = df[col].values.reshape(-1, 1)
-    
-    # Fit the mathematical line of best fit across the entire 12 years
+
+    # Fit the mathematical line of best fit across the entire dataset
     lr_model.fit(time_index, y_actual)
-    
+
     # Calculate exactly what the line expected the price to be on every single day
     trend_line = lr_model.predict(time_index)
-    
+
     # Calculate the Residual (Actual Price minus the Expected Trend Price)
     df[f'{col}_Trend'] = trend_line
     df[f'{col}_Residual'] = y_actual - trend_line
 
 # --- 4. TIME-SERIES MEMORY (LAGGED FEATURES) ---
 print("Generating T-1, T-3, and T-7 Lagged Features...")
-# To ensure a mathematically valid A/B test, we must feed XGBoost the EXACT same 
+# To ensure a mathematically valid A/B test, we must feed XGBoost the EXACT same
 # historical memory context it received in Architecture A.
 for col in columns_to_detrend:
     df[f'{col}_Lag1'] = df[col].shift(1)
@@ -64,11 +73,13 @@ for col in columns_to_detrend:
 
 # --- 6. DOMAIN-SPECIFIC CROSS-FEATURES ---
 print("Engineering Economic Cross-Features...")
-df['Gold_Silver_Ratio'] = df['Gold_Close'] / df['Silver_Close']
+# The Brent/Natural Gas ratio is a classic energy market spread indicator.
+# A widening spread can signal shifts in fuel substitution and energy demand dynamics.
+df['Brent_NatGas_Ratio'] = df['Brent_Crude_Close'] / df['Natural_Gas_Close']
 
 # --- 7. CLEANUP & SAVE ---
 print("Executing final data cleanup...")
-# Drop the initial 14 days created by the lags/rolling averages to match Dataset A perfectly
+# Drop the initial NaN rows created by lags/rolling averages
 df.dropna(inplace=True)
 
 df.to_csv(output_file)

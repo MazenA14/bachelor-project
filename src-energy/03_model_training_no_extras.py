@@ -1,3 +1,15 @@
+# =============================================================================
+# PIPELINE IDENTITY
+#   Extra Features      : NO (Only raw prices + stationarity columns — no lags/rolling/cross)
+#   Architecture A      : DIFFERENCING  — reads 01a_differencing_energy_dataset.csv
+#                         Target: Brent_Crude_Close_LogReturn
+#   Architecture B      : DETRENDING    — reads 01b_detrending_energy_dataset.csv
+#                         Target: Brent_Crude_Close_Residual
+#   Saves models to     : ../models-energy/  (xgboost_a_no_extras.json, xgboost_b_no_extras.json,
+#                                             arima_baseline_no_extras.pkl)
+#   Evaluated by        : 04c_evaluation_and_plotting_no_extras_with_arima_recalculation.py
+#                         04d_evaluation_and_plotting_no_extras_no_arima_recalculation.py
+# =============================================================================
 import os
 import pandas as pd
 import xgboost as xgb
@@ -7,19 +19,19 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # --- 1. CONFIGURATION & DIRECTORY SETUP ---
-PROCESSED_DIR = '../data/02_processed/'
-FINAL_DIR = '../data/03_final/'
-MODELS_DIR = '../models/'
+PROCESSED_DIR = '../data-energy/02_processed/'
+FINAL_DIR = '../data-energy/03_final/'
+MODELS_DIR = '../models-energy/'
 
 # Ensure the models directory exists so the script doesn't crash when saving
 os.makedirs(MODELS_DIR, exist_ok=True)
 
-print("Initiating Phase 3: Model Training (No Extras)...\n")
+print("Initiating Phase 3: Model Training (No Extras, Energy)...\n")
 
 # --- 2. LOAD ALL THREE DATASETS ---
-df_master = pd.read_csv(os.path.join(PROCESSED_DIR, '01_master_metals_dataset.csv'), index_col='Date', parse_dates=['Date'])
-df_a = pd.read_csv(os.path.join(FINAL_DIR, '01a_differencing_metals_dataset.csv'), index_col='Date', parse_dates=['Date'])
-df_b = pd.read_csv(os.path.join(FINAL_DIR, '01b_detrending_metals_dataset.csv'), index_col='Date', parse_dates=['Date'])
+df_master = pd.read_csv(os.path.join(PROCESSED_DIR, '01_master_energy_dataset.csv'), index_col='Date', parse_dates=['Date'])
+df_a = pd.read_csv(os.path.join(FINAL_DIR, '01a_differencing_energy_dataset.csv'), index_col='Date', parse_dates=['Date'])
+df_b = pd.read_csv(os.path.join(FINAL_DIR, '01b_detrending_energy_dataset.csv'), index_col='Date', parse_dates=['Date'])
 
 # --- 3. THE CHRONOLOGICAL TIMELINE SPLIT ---
 TRAIN_END = '2023-12-31'
@@ -39,29 +51,41 @@ train_b, val_b, test_b = split_data(df_b)
 # --- 4. FEATURE SELECTION (Isolating X and Y) ---
 # These datasets have NO lag, rolling, or cross-feature columns.
 # We only drop raw prices + the stationarity-specific columns.
-drop_cols_a = ['Gold_Close', 'Silver_Close', 'DXY_Close', 'EGP_USD_Close', 
-               'Gold_Close_LogReturn', 'Silver_Close_LogReturn', 'DXY_Close_LogReturn', 'EGP_USD_Close_LogReturn']
+drop_cols_a = [
+    'Brent_Crude_Close', 'Natural_Gas_Close', 'DXY_Close', 'VIX_Close', 'SP500_Close', 'EGP_USD_Close',
+    'Brent_Crude_Close_LogReturn', 'Natural_Gas_Close_LogReturn', 'DXY_Close_LogReturn',
+    'VIX_Close_LogReturn', 'SP500_Close_LogReturn', 'EGP_USD_Close_LogReturn',
+    'US_10Yr_Yield_Diff',
+    'Egypt_Inflation_YoY', 'CBE_Interest_Rate'
+]
 
 X_train_a = train_a.drop(columns=drop_cols_a)
-y_train_a = train_a['Gold_Close_LogReturn']
+y_train_a = train_a['Brent_Crude_Close_LogReturn']
 X_val_a = val_a.drop(columns=drop_cols_a)
-y_val_a = val_a['Gold_Close_LogReturn']
+y_val_a = val_a['Brent_Crude_Close_LogReturn']
 
-drop_cols_b = ['Gold_Close', 'Silver_Close', 'DXY_Close', 'EGP_USD_Close', 
-               'Gold_Close_Trend', 'Gold_Close_Residual', 'Silver_Close_Trend', 'Silver_Close_Residual',
-               'DXY_Close_Trend', 'DXY_Close_Residual', 'EGP_USD_Close_Trend', 'EGP_USD_Close_Residual']
+drop_cols_b = [
+    'Brent_Crude_Close', 'Natural_Gas_Close', 'DXY_Close', 'VIX_Close', 'SP500_Close', 'EGP_USD_Close',
+    'Brent_Crude_Close_Trend', 'Brent_Crude_Close_Residual',
+    'Natural_Gas_Close_Trend', 'Natural_Gas_Close_Residual',
+    'DXY_Close_Trend', 'DXY_Close_Residual',
+    'VIX_Close_Trend', 'VIX_Close_Residual',
+    'SP500_Close_Trend', 'SP500_Close_Residual',
+    'EGP_USD_Close_Trend', 'EGP_USD_Close_Residual',
+    'Egypt_Inflation_YoY', 'CBE_Interest_Rate'
+]
 
 X_train_b = train_b.drop(columns=drop_cols_b)
-y_train_b = train_b['Gold_Close_Residual']
+y_train_b = train_b['Brent_Crude_Close_Residual']
 X_val_b = val_b.drop(columns=drop_cols_b)
-y_val_b = val_b['Gold_Close_Residual']
+y_val_b = val_b['Brent_Crude_Close_Residual']
 
 print(f"Features for XGBoost A: {list(X_train_a.columns)}")
 print(f"Features for XGBoost B: {list(X_train_b.columns)}\n")
 
 # --- 5. MODEL 1: ARIMA BASELINE ---
 print("Training Model 1: ARIMA Baseline...")
-arima_train = df_master['Gold_Close'][:VAL_END] 
+arima_train = df_master['Brent_Crude_Close'][:VAL_END]
 arima_model = ARIMA(arima_train, order=(5, 1, 0))
 arima_fitted = arima_model.fit()
 
@@ -72,7 +96,16 @@ print(f"ARIMA Base saved to: {arima_save_path}")
 
 # --- 6. MODEL 2: XGBOOST ARCHITECTURE A ---
 print("\nTraining Model 2: XGBoost (Log Returns, No Extras)...")
-xgb_a = xgb.XGBRegressor(n_estimators=1000, learning_rate=0.05, max_depth=5, random_state=42, early_stopping_rounds=50)
+# Hyperparameters from 06_hyperparameter_tuning.py (CV RMSE: 0.020209)
+xgb_a = xgb.XGBRegressor(
+    n_estimators=500,
+    learning_rate=0.01,
+    max_depth=3,
+    subsample=0.8,
+    colsample_bytree=0.8,
+    random_state=42,
+    early_stopping_rounds=50
+)
 xgb_a.fit(X_train_a, y_train_a, eval_set=[(X_val_a, y_val_a)], verbose=False)
 
 # SAVE XGBOOST A TO DISK (Using native JSON format)
@@ -82,7 +115,16 @@ print(f"XGBoost A saved to: {xgb_a_save_path}")
 
 # --- 7. MODEL 3: XGBOOST ARCHITECTURE B ---
 print("\nTraining Model 3: XGBoost (Detrended Residuals, No Extras)...")
-xgb_b = xgb.XGBRegressor(n_estimators=1000, learning_rate=0.05, max_depth=5, random_state=42, early_stopping_rounds=50)
+# Hyperparameters from 06_hyperparameter_tuning.py (CV RMSE: 0.020209)
+xgb_b = xgb.XGBRegressor(
+    n_estimators=500,
+    learning_rate=0.01,
+    max_depth=3,
+    subsample=0.8,
+    colsample_bytree=0.8,
+    random_state=42,
+    early_stopping_rounds=50
+)
 xgb_b.fit(X_train_b, y_train_b, eval_set=[(X_val_b, y_val_b)], verbose=False)
 
 # SAVE XGBOOST B TO DISK

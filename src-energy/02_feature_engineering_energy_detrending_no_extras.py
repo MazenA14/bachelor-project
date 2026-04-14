@@ -1,17 +1,25 @@
+# =============================================================================
+# PIPELINE IDENTITY
+#   Stationarity Method : DETRENDING  (Linear Regression residuals: y - trend)
+#   Extra Features      : NO (Only raw prices + trend/residual columns — no lags/rolling/cross)
+#   Output dataset      : 01b_detrending_energy_dataset.csv
+#   Used by             : 03_model_training_no_extras.py  (XGBoost Architecture B)
+#                         04c / 04d evaluation scripts
+# =============================================================================
 import os
 import pandas as pd
 import numpy as np
 from sklearn.linear_model import LinearRegression
 
 # --- 1. CONFIGURATION & DIRECTORY SETUP ---
-PROCESSED_DIR = '../data/02_processed/'
-FINAL_DIR = '../data/03_final/'
+PROCESSED_DIR = '../data-energy/02_processed/'
+FINAL_DIR = '../data-energy/03_final/'
 
 # Ensure the final output directory exists
 os.makedirs(FINAL_DIR, exist_ok=True)
 
-input_file = os.path.join(PROCESSED_DIR, '01_master_metals_dataset.csv')
-output_file = os.path.join(FINAL_DIR, '01b_detrending_metals_dataset.csv')
+input_file = os.path.join(PROCESSED_DIR, '01_master_energy_dataset.csv')
+output_file = os.path.join(FINAL_DIR, '01b_detrending_energy_dataset.csv')
 
 print("Initiating Detrending Pipeline (No Extra Columns)...")
 
@@ -25,7 +33,8 @@ except FileNotFoundError:
 
 # --- 3. STATIONARITY (LINEAR DETRENDING) ---
 print("Calculating Linear Trends and Extracting Residuals...")
-columns_to_detrend = ['Gold_Close', 'Silver_Close', 'DXY_Close', 'EGP_USD_Close']
+# Detrend price-based columns; US_10Yr_Yield is already a rate and is left as-is
+columns_to_detrend = ['Brent_Crude_Close', 'Natural_Gas_Close', 'DXY_Close', 'VIX_Close', 'SP500_Close', 'EGP_USD_Close']
 
 # Create an X-axis representing the flow of time (0, 1, 2, 3... to the end of the dataset)
 # We must reshape it to a 2D array because scikit-learn requires it.
@@ -34,16 +43,16 @@ time_index = np.arange(len(df)).reshape(-1, 1)
 for col in columns_to_detrend:
     # Instantiate the standard linear equation: y = mx + b
     lr_model = LinearRegression()
-    
+
     # Grab the actual prices (Y-axis)
     y_actual = df[col].values.reshape(-1, 1)
-    
-    # Fit the mathematical line of best fit across the entire 12 years
+
+    # Fit the mathematical line of best fit across the entire dataset
     lr_model.fit(time_index, y_actual)
-    
+
     # Calculate exactly what the line expected the price to be on every single day
     trend_line = lr_model.predict(time_index)
-    
+
     # Calculate the Residual (Actual Price minus the Expected Trend Price)
     df[f'{col}_Trend'] = trend_line
     df[f'{col}_Residual'] = y_actual - trend_line
