@@ -38,15 +38,12 @@ val = df_eng[VAL_START:VAL_END]
 test = df_eng[TEST_START:]
 
 # --- 3. TARGET ISOLATION & LEAKAGE PREVENTION ---
-# Drop today's absolute prices and today's stationary transforms — these would leak the answer.
-# Egypt_Inflation_YoY and CBE_Interest_Rate are ALSO dropped from the base pool here;
-# they will be selectively added back only to the Hybrid model.
+# Drop raw (non-stationary) prices — they must not be used as features.
+# Only drop Brent's own LogReturn (target leakage).
+# Other assets' LogReturns (NatGas, DXY, VIX, SP500, EGP_USD) are valid input features.
 potential_leakage = [
     'Brent_Crude_Close', 'Natural_Gas_Close', 'DXY_Close', 'VIX_Close', 'SP500_Close', 'EGP_USD_Close',
-    'Brent_Crude_Close_LogReturn', 'Natural_Gas_Close_LogReturn', 'DXY_Close_LogReturn',
-    'VIX_Close_LogReturn', 'SP500_Close_LogReturn', 'EGP_USD_Close_LogReturn',
-    'US_10Yr_Yield_Diff',
-    'Egypt_Inflation_YoY', 'CBE_Interest_Rate'
+    'Brent_Crude_Close_LogReturn'
 ]
 cols_to_drop = [c for c in potential_leakage if c in df_eng.columns]
 
