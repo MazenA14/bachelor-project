@@ -12,3 +12,7 @@ models/
 models-extra-variables/
 models-extra-variables-local/
 models-energy/
+
+# Plots folder
+plots-extra-variables/
+plots-energy/
