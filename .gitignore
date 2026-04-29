@@ -6,12 +6,14 @@ data/
 data-extra-variables/
 data-extra-variables-local/
 data-energy/
+data-crops/
 
 # Models folder
 models/
 models-extra-variables/
 models-extra-variables-local/
 models-energy/
+models-crops/
 
 # Plots folder
 plots-extra-variables/
