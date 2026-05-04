@@ -13,7 +13,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import xgboost as xgb
 from statsmodels.tsa.arima.model import ARIMAResults
-from sklearn.metrics import root_mean_squared_error
+from sklearn.metrics import root_mean_squared_error, mean_squared_error, mean_absolute_error, r2_score, mean_absolute_percentage_error
 from xgboost import plot_importance
 
 # --- 1. CONFIGURATION & DATA LOADING ---
@@ -91,13 +91,27 @@ xgb_b_price_predictions = trend_expected_b + preds_resid_b
 actual_prices = df_master.loc[test_a.index, 'Brent_Crude_Close']
 
 rmse_arima = root_mean_squared_error(actual_prices, arima_predictions)
+mse_arima = mean_squared_error(actual_prices, arima_predictions)
+mae_arima = mean_absolute_error(actual_prices, arima_predictions)
+mape_arima = mean_absolute_percentage_error(actual_prices, arima_predictions)
+r2_arima = r2_score(actual_prices, arima_predictions)
+
 rmse_xgb_a = root_mean_squared_error(actual_prices, xgb_a_price_predictions)
+mse_xgb_a = mean_squared_error(actual_prices, xgb_a_price_predictions)
+mae_xgb_a = mean_absolute_error(actual_prices, xgb_a_price_predictions)
+mape_xgb_a = mean_absolute_percentage_error(actual_prices, xgb_a_price_predictions)
+r2_xgb_a = r2_score(actual_prices, xgb_a_price_predictions)
+
 rmse_xgb_b = root_mean_squared_error(actual_prices, xgb_b_price_predictions)
+mse_xgb_b = mean_squared_error(actual_prices, xgb_b_price_predictions)
+mae_xgb_b = mean_absolute_error(actual_prices, xgb_b_price_predictions)
+mape_xgb_b = mean_absolute_percentage_error(actual_prices, xgb_b_price_predictions)
+r2_xgb_b = r2_score(actual_prices, xgb_b_price_predictions)
 
 print("\n=== FINAL EXAM RESULTS (Test Set: 2025 - Present) ===")
-print(f"ARIMA Baseline RMSE:        ${rmse_arima:.2f}")
-print(f"XGBoost A (Log Returns):    ${rmse_xgb_a:.2f}")
-print(f"XGBoost B (Detrended):      ${rmse_xgb_b:.2f}\n")
+print(f"ARIMA Baseline RMSE:        ${rmse_arima:.2f} | MAPE: {mape_arima:.4f} | MAE: {mae_arima:.2f} | MSE: {mse_arima:.2f} | R2: {r2_arima:.4f}")
+print(f"XGBoost A (Log Returns):    ${rmse_xgb_a:.2f} | MAPE: {mape_xgb_a:.4f} | MAE: {mae_xgb_a:.2f} | MSE: {mse_xgb_a:.2f} | R2: {r2_xgb_a:.4f}")
+print(f"XGBoost B (Detrended):      ${rmse_xgb_b:.2f} | MAPE: {mape_xgb_b:.4f} | MAE: {mae_xgb_b:.2f} | MSE: {mse_xgb_b:.2f} | R2: {r2_xgb_b:.4f}\n")
 
 # --- 7. VISUALIZATION ---
 print("Generating Visualizations...")

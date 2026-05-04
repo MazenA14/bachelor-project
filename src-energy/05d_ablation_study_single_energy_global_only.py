@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 import xgboost as xgb
 import matplotlib.pyplot as plt
-from sklearn.metrics import root_mean_squared_error
+from sklearn.metrics import root_mean_squared_error, mean_squared_error, mean_absolute_error, r2_score, mean_absolute_percentage_error
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -111,11 +111,20 @@ price_brent_only = yesterday_brent * np.exp(preds_brent_only)
 actual_brent = df_master.loc[test.index, 'Brent_Crude_Close']
 
 rmse_brent_full = root_mean_squared_error(actual_brent, price_brent_full)
+mse_brent_full = mean_squared_error(actual_brent, price_brent_full)
+mae_brent_full = mean_absolute_error(actual_brent, price_brent_full)
+mape_brent_full = mean_absolute_percentage_error(actual_brent, price_brent_full)
+r2_brent_full = r2_score(actual_brent, price_brent_full)
+
 rmse_brent_only = root_mean_squared_error(actual_brent, price_brent_only)
+mse_brent_only = mean_squared_error(actual_brent, price_brent_only)
+mae_brent_only = mean_absolute_error(actual_brent, price_brent_only)
+mape_brent_only = mean_absolute_percentage_error(actual_brent, price_brent_only)
+r2_brent_only = r2_score(actual_brent, price_brent_only)
 
 print("\n=== BRENT ABLATION RESULTS (RMSE) ===")
-print(f"Full Model (with NatGas):       ${rmse_brent_full:.2f}")
-print(f"Brent-Only Model (no NatGas):   ${rmse_brent_only:.2f}\n")
+print(f"Full Model (with NatGas):       ${rmse_brent_full:.2f} | MAPE: {mape_brent_full:.4f} | MAE: {mae_brent_full:.2f} | MSE: {mse_brent_full:.2f} | R2: {r2_brent_full:.4f}")
+print(f"Brent-Only Model (no NatGas):   ${rmse_brent_only:.2f} | MAPE: {mape_brent_only:.4f} | MAE: {mae_brent_only:.2f} | MSE: {mse_brent_only:.2f} | R2: {r2_brent_only:.4f}\n")
 
 # =====================================================================
 #  PART B — NATURAL GAS PREDICTION (with vs. without Brent features)
@@ -182,11 +191,20 @@ price_natgas_only = yesterday_natgas * np.exp(preds_natgas_only)
 actual_natgas = df_master.loc[test.index, 'Natural_Gas_Close']
 
 rmse_natgas_full = root_mean_squared_error(actual_natgas, price_natgas_full)
+mse_natgas_full = mean_squared_error(actual_natgas, price_natgas_full)
+mae_natgas_full = mean_absolute_error(actual_natgas, price_natgas_full)
+mape_natgas_full = mean_absolute_percentage_error(actual_natgas, price_natgas_full)
+r2_natgas_full = r2_score(actual_natgas, price_natgas_full)
+
 rmse_natgas_only = root_mean_squared_error(actual_natgas, price_natgas_only)
+mse_natgas_only = mean_squared_error(actual_natgas, price_natgas_only)
+mae_natgas_only = mean_absolute_error(actual_natgas, price_natgas_only)
+mape_natgas_only = mean_absolute_percentage_error(actual_natgas, price_natgas_only)
+r2_natgas_only = r2_score(actual_natgas, price_natgas_only)
 
 print("\n=== NATGAS ABLATION RESULTS (RMSE) ===")
-print(f"Full Model (with Brent):        ${rmse_natgas_full:.2f}")
-print(f"NatGas-Only Model (no Brent):   ${rmse_natgas_only:.2f}\n")
+print(f"Full Model (with Brent):        ${rmse_natgas_full:.2f} | MAPE: {mape_natgas_full:.4f} | MAE: {mae_natgas_full:.2f} | MSE: {mse_natgas_full:.2f} | R2: {r2_natgas_full:.4f}")
+print(f"NatGas-Only Model (no Brent):   ${rmse_natgas_only:.2f} | MAPE: {mape_natgas_only:.4f} | MAE: {mae_natgas_only:.2f} | MSE: {mse_natgas_only:.2f} | R2: {r2_natgas_only:.4f}\n")
 
 # =====================================================================
 #  VISUALIZATION

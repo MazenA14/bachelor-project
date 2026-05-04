@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import xgboost as xgb
 import matplotlib.pyplot as plt
-from sklearn.metrics import root_mean_squared_error
+from sklearn.metrics import root_mean_squared_error, mean_absolute_percentage_error, mean_absolute_error, mean_squared_error, r2_score
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -104,9 +104,21 @@ actual_gold = df_master.loc[test.index, 'Gold_Close']
 rmse_gold_full = root_mean_squared_error(actual_gold, price_gold_full)
 rmse_gold_only = root_mean_squared_error(actual_gold, price_gold_only)
 
+mape_gold_full = mean_absolute_percentage_error(actual_gold, price_gold_full)
+mape_gold_only = mean_absolute_percentage_error(actual_gold, price_gold_only)
+
+mae_gold_full = mean_absolute_error(actual_gold, price_gold_full)
+mae_gold_only = mean_absolute_error(actual_gold, price_gold_only)
+
+mse_gold_full = mean_squared_error(actual_gold, price_gold_full)
+mse_gold_only = mean_squared_error(actual_gold, price_gold_only)
+
+r2_gold_full = r2_score(actual_gold, price_gold_full)
+r2_gold_only = r2_score(actual_gold, price_gold_only)
+
 print("\n=== GOLD ABLATION RESULTS (RMSE) ===")
-print(f"Full Model (with Silver):     ${rmse_gold_full:.2f}")
-print(f"Gold-Only Model (no Silver):  ${rmse_gold_only:.2f}\n")
+print(f"Full Model (with Silver):     ${rmse_gold_full:.2f} | MAPE: {mape_gold_full:.4f} | MAE: {mae_gold_full:.2f} | MSE: {mse_gold_full:.2f} | R2: {r2_gold_full:.4f}")
+print(f"Gold-Only Model (no Silver):  ${rmse_gold_only:.2f} | MAPE: {mape_gold_only:.4f} | MAE: {mae_gold_only:.2f} | MSE: {mse_gold_only:.2f} | R2: {r2_gold_only:.4f}\n")
 
 # =====================================================================
 #  PART B — SILVER PRICE PREDICTION (with vs. without Gold features)
@@ -175,9 +187,21 @@ actual_silver = df_master.loc[test.index, 'Silver_Close']
 rmse_silver_full = root_mean_squared_error(actual_silver, price_silver_full)
 rmse_silver_only = root_mean_squared_error(actual_silver, price_silver_only)
 
+mape_silver_full = mean_absolute_percentage_error(actual_silver, price_silver_full)
+mape_silver_only = mean_absolute_percentage_error(actual_silver, price_silver_only)
+
+mae_silver_full = mean_absolute_error(actual_silver, price_silver_full)
+mae_silver_only = mean_absolute_error(actual_silver, price_silver_only)
+
+mse_silver_full = mean_squared_error(actual_silver, price_silver_full)
+mse_silver_only = mean_squared_error(actual_silver, price_silver_only)
+
+r2_silver_full = r2_score(actual_silver, price_silver_full)
+r2_silver_only = r2_score(actual_silver, price_silver_only)
+
 print("\n=== SILVER ABLATION RESULTS (RMSE) ===")
-print(f"Full Model (with Gold):       ${rmse_silver_full:.2f}")
-print(f"Silver-Only Model (no Gold):  ${rmse_silver_only:.2f}\n")
+print(f"Full Model (with Gold):       ${rmse_silver_full:.2f} | MAPE: {mape_silver_full:.4f} | MAE: {mae_silver_full:.2f} | MSE: {mse_silver_full:.2f} | R2: {r2_silver_full:.4f}")
+print(f"Silver-Only Model (no Gold):  ${rmse_silver_only:.2f} | MAPE: {mape_silver_only:.4f} | MAE: {mae_silver_only:.2f} | MSE: {mse_silver_only:.2f} | R2: {r2_silver_only:.4f}\n")
 
 # =====================================================================
 #  VISUALIZATION

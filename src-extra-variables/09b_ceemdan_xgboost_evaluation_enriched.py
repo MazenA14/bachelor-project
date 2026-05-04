@@ -145,11 +145,14 @@ try:
         pure_preds[target] = pd.Series(m.predict(test_pure[fc]), index=test_pure.index)
     pure_price = pd.DataFrame(pure_preds).sum(axis=1)
     rmse_pure = root_mean_squared_error(actual_prices, pure_price)
+    mape_pure = mean_absolute_percentage_error(actual_prices, pure_price)
+    mae_pure = mean_absolute_error(actual_prices, pure_price)
+    mse_pure = mean_squared_error(actual_prices, pure_price)
     r2_pure   = r2_score(actual_prices, pure_price)
     comparison_models['CEEMDAN-XGB Pure (IMF-only)'] = {
         'preds': pure_price, 'rmse': rmse_pure, 'r2': r2_pure
     }
-    print(f"  CEEMDAN Pure   ->  RMSE: ${rmse_pure:,.2f}  |  R2: {r2_pure:.6f}")
+    print(f"  CEEMDAN Pure   ->  RMSE: ${rmse_pure:,.2f}  |  MAPE: {mape_pure:.4f}  |  MAE: {mae_pure:.2f}  |  MSE: {mse_pure:.2f}  |  R2: {r2_pure:.6f}")
 except Exception as e:
     print(f"  [!]  Could not load CEEMDAN Pure: {e}")
 
@@ -177,11 +180,14 @@ try:
     xgb_a_preds = yesterday_price_a * np.exp(preds_log_a)
 
     rmse_a = root_mean_squared_error(actual_prices, xgb_a_preds)
+    mape_a = mean_absolute_percentage_error(actual_prices, xgb_a_preds)
+    mae_a = mean_absolute_error(actual_prices, xgb_a_preds)
+    mse_a = mean_squared_error(actual_prices, xgb_a_preds)
     r2_a   = r2_score(actual_prices, xgb_a_preds)
     comparison_models['XGBoost A (Log Returns)'] = {
         'preds': xgb_a_preds, 'rmse': rmse_a, 'r2': r2_a
     }
-    print(f"  XGBoost A      ->  RMSE: ${rmse_a:,.2f}  |  R2: {r2_a:.6f}")
+    print(f"  XGBoost A      ->  RMSE: ${rmse_a:,.2f}  |  MAPE: {mape_a:.4f}  |  MAE: {mae_a:.2f}  |  MSE: {mse_a:.2f}  |  R2: {r2_a:.6f}")
 except Exception as e:
     print(f"  [!]  Could not load XGBoost A: {e}")
 
@@ -209,15 +215,18 @@ try:
     xgb_b_preds = trend_b + preds_resid_b
 
     rmse_b = root_mean_squared_error(actual_prices, xgb_b_preds)
+    mape_b = mean_absolute_percentage_error(actual_prices, xgb_b_preds)
+    mae_b = mean_absolute_error(actual_prices, xgb_b_preds)
+    mse_b = mean_squared_error(actual_prices, xgb_b_preds)
     r2_b   = r2_score(actual_prices, xgb_b_preds)
     comparison_models['XGBoost B (Detrended)'] = {
         'preds': xgb_b_preds, 'rmse': rmse_b, 'r2': r2_b
     }
-    print(f"  XGBoost B      ->  RMSE: ${rmse_b:,.2f}  |  R2: {r2_b:.6f}")
+    print(f"  XGBoost B      ->  RMSE: ${rmse_b:,.2f}  |  MAPE: {mape_b:.4f}  |  MAE: {mae_b:.2f}  |  MSE: {mse_b:.2f}  |  R2: {r2_b:.6f}")
 except Exception as e:
     print(f"  [!]  Could not load XGBoost B: {e}")
 
-print(f"\n  CEEMDAN Enriched ->  RMSE: ${rmse:,.2f}  |  R2: {r2:.6f}")
+print(f"\n  CEEMDAN Enriched ->  RMSE: ${rmse:,.2f}  |  MAPE: {mape:.4f}  |  MAE: {mae:.2f}  |  MSE: {mse:.2f}  |  R2: {r2:.6f}")
 
 # --- 8. VISUALISATIONS ---
 print("\nGenerating plots...")

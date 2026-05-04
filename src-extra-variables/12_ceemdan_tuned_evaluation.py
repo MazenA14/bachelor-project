@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import xgboost as xgb
 import matplotlib.pyplot as plt
-from sklearn.metrics import root_mean_squared_error, r2_score
+from sklearn.metrics import root_mean_squared_error, r2_score, mean_absolute_percentage_error, mean_absolute_error, mean_squared_error
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -61,6 +61,9 @@ def main():
     tuned_price_preds = yesterday_price * np.exp(predicted_log_returns)
 
     rmse_tuned = root_mean_squared_error(actual_prices, tuned_price_preds)
+    mape_tuned = mean_absolute_percentage_error(actual_prices, tuned_price_preds)
+    mae_tuned = mean_absolute_error(actual_prices, tuned_price_preds)
+    mse_tuned = mean_squared_error(actual_prices, tuned_price_preds)
     r2_tuned = r2_score(actual_prices, tuned_price_preds)
 
     # --- 3. COMPARE AGAINST UN-TUNED BASELINE ---
@@ -77,13 +80,16 @@ def main():
     untuned_log = pd.DataFrame(untuned_preds).sum(axis=1)
     untuned_price_preds = yesterday_price * np.exp(untuned_log)
     rmse_untuned = root_mean_squared_error(actual_prices, untuned_price_preds)
+    mape_untuned = mean_absolute_percentage_error(actual_prices, untuned_price_preds)
+    mae_untuned = mean_absolute_error(actual_prices, untuned_price_preds)
+    mse_untuned = mean_squared_error(actual_prices, untuned_price_preds)
+    r2_untuned = r2_score(actual_prices, untuned_price_preds)
 
     print("\n" + "=" * 60)
     print("  TEST SET RESULTS (2025 -> Present)")
     print("=" * 60)
-    print(f"  Un-Tuned CEEMDAN (Blanket Params) : ${rmse_untuned:.2f}")
-    print(f"  Tuned CEEMDAN (IMF-Specific)      : ${rmse_tuned:.2f}")
-    print(f"  R-Squared (Tuned)                 : {r2_tuned:.6f}")
+    print(f"  Un-Tuned CEEMDAN (Blanket Params) : ${rmse_untuned:.2f} | MAPE: {mape_untuned:.4f} | MAE: {mae_untuned:.2f} | MSE: {mse_untuned:.2f} | R2: {r2_untuned:.6f}")
+    print(f"  Tuned CEEMDAN (IMF-Specific)      : ${rmse_tuned:.2f} | MAPE: {mape_tuned:.4f} | MAE: {mae_tuned:.2f} | MSE: {mse_tuned:.2f} | R2: {r2_tuned:.6f}")
     print("=" * 60)
 
     # --- 4. VISUALISATION ---

@@ -12,7 +12,7 @@ import pandas as pd
 import numpy as np
 import xgboost as xgb
 import matplotlib.pyplot as plt
-from sklearn.metrics import root_mean_squared_error
+from sklearn.metrics import root_mean_squared_error, mean_absolute_percentage_error, mean_absolute_error, mean_squared_error, r2_score
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -111,9 +111,21 @@ def evaluate_commodity(target_prefix, other_keywords):
     rmse_full = root_mean_squared_error(actual_price, price_full)
     rmse_single = root_mean_squared_error(actual_price, price_single)
 
+    mape_full = mean_absolute_percentage_error(actual_price, price_full)
+    mape_single = mean_absolute_percentage_error(actual_price, price_single)
+
+    mae_full = mean_absolute_error(actual_price, price_full)
+    mae_single = mean_absolute_error(actual_price, price_single)
+
+    mse_full = mean_squared_error(actual_price, price_full)
+    mse_single = mean_squared_error(actual_price, price_single)
+
+    r2_full = r2_score(actual_price, price_full)
+    r2_single = r2_score(actual_price, price_single)
+
     print(f"\n=== {target_prefix.upper()} ABLATION RESULTS (RMSE) ===")
-    print(f"Full Model (All Crops):     ${rmse_full:.2f}")
-    print(f"{target_prefix}-Only Model:           ${rmse_single:.2f}\n")
+    print(f"Full Model (All Crops):     ${rmse_full:.2f} | MAPE: {mape_full:.4f} | MAE: {mae_full:.2f} | MSE: {mse_full:.2f} | R2: {r2_full:.4f}")
+    print(f"{target_prefix}-Only Model:           ${rmse_single:.2f} | MAPE: {mape_single:.4f} | MAE: {mae_single:.2f} | MSE: {mse_single:.2f} | R2: {r2_single:.4f}\n")
 
     return rmse_full, rmse_single, actual_price, price_full, price_single
 

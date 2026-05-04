@@ -149,11 +149,14 @@ try:
     xgb_a_preds = yesterday_price_a * np.exp(preds_log_a)
 
     rmse_a = root_mean_squared_error(actual_prices, xgb_a_preds)
+    mape_a = mean_absolute_percentage_error(actual_prices, xgb_a_preds)
+    mae_a = mean_absolute_error(actual_prices, xgb_a_preds)
+    mse_a = mean_squared_error(actual_prices, xgb_a_preds)
     r2_a   = r2_score(actual_prices, xgb_a_preds)
     comparison_models['XGBoost A (Log Returns)'] = {
         'preds': xgb_a_preds, 'rmse': rmse_a, 'r2': r2_a
     }
-    print(f"  XGBoost A      ->  RMSE: ${rmse_a:,.2f}  |  R2: {r2_a:.6f}")
+    print(f"  XGBoost A      ->  RMSE: ${rmse_a:,.2f}  |  MAPE: {mape_a:.4f}  |  MAE: {mae_a:.2f}  |  MSE: {mse_a:.2f}  |  R2: {r2_a:.6f}")
 except Exception as e:
     print(f"  [!]  Could not load XGBoost A: {e}")
 
@@ -177,15 +180,18 @@ try:
         en_preds[target] = pd.Series(m.predict(test_en[fc]), index=test_en.index)
     en_price = pd.DataFrame(en_preds).sum(axis=1)
     rmse_en = root_mean_squared_error(actual_prices, en_price)
+    mape_en = mean_absolute_percentage_error(actual_prices, en_price)
+    mae_en = mean_absolute_error(actual_prices, en_price)
+    mse_en = mean_squared_error(actual_prices, en_price)
     r2_en   = r2_score(actual_prices, en_price)
     comparison_models['CEEMDAN Enriched (Abs Price)'] = {
         'preds': en_price, 'rmse': rmse_en, 'r2': r2_en
     }
-    print(f"  CEEMDAN Enriched ->  RMSE: ${rmse_en:,.2f}  |  R2: {r2_en:.6f}")
+    print(f"  CEEMDAN Enriched ->  RMSE: ${rmse_en:,.2f}  |  MAPE: {mape_en:.4f}  |  MAE: {mae_en:.2f}  |  MSE: {mse_en:.2f}  |  R2: {r2_en:.6f}")
 except Exception as e:
     print(f"  [!]  Could not load CEEMDAN Enriched: {e}")
 
-print(f"\n  CEEMDAN Stationary ->  RMSE: ${rmse:,.2f}  |  R2: {r2:.6f}")
+print(f"\n  CEEMDAN Stationary ->  RMSE: ${rmse:,.2f}  |  MAPE: {mape:.4f}  |  MAE: {mae:.2f}  |  MSE: {mse:.2f}  |  R2: {r2:.6f}")
 
 # --- 8. VISUALISATIONS ---
 print("\nGenerating plots...")

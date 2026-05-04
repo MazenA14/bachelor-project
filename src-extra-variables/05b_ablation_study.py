@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import xgboost as xgb
 import matplotlib.pyplot as plt
-from sklearn.metrics import root_mean_squared_error
+from sklearn.metrics import root_mean_squared_error, mean_absolute_percentage_error, mean_absolute_error, mean_squared_error, r2_score
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -93,13 +93,25 @@ price_global = yesterday_price * np.exp(preds_global)
 
 actual_prices = df_master.loc[test.index, 'Gold_Close']
 
-# Calculate RMSE
+# Calculate metrics
 rmse_hybrid = root_mean_squared_error(actual_prices, price_hybrid)
 rmse_global = root_mean_squared_error(actual_prices, price_global)
 
+mape_hybrid = mean_absolute_percentage_error(actual_prices, price_hybrid)
+mape_global = mean_absolute_percentage_error(actual_prices, price_global)
+
+mae_hybrid = mean_absolute_error(actual_prices, price_hybrid)
+mae_global = mean_absolute_error(actual_prices, price_global)
+
+mse_hybrid = mean_squared_error(actual_prices, price_hybrid)
+mse_global = mean_squared_error(actual_prices, price_global)
+
+r2_hybrid = r2_score(actual_prices, price_hybrid)
+r2_global = r2_score(actual_prices, price_global)
+
 print("=== ABLATION STUDY RESULTS (RMSE) ===")
-print(f"Hybrid Model (All Data):        ${rmse_hybrid:.2f}")
-print(f"Global Model (Wall St Only):    ${rmse_global:.2f}\n")
+print(f"Hybrid Model (All Data):        ${rmse_hybrid:.2f} | MAPE: {mape_hybrid:.4f} | MAE: {mae_hybrid:.2f} | MSE: {mse_hybrid:.2f} | R2: {r2_hybrid:.4f}")
+print(f"Global Model (Wall St Only):    ${rmse_global:.2f} | MAPE: {mape_global:.4f} | MAE: {mae_global:.2f} | MSE: {mse_global:.2f} | R2: {r2_global:.4f}\n")
 
 # --- 7. VISUALIZATION ---
 # Plot 1: The RMSE Comparison Bar Chart
