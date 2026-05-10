@@ -1,4 +1,5 @@
 import os
+import joblib
 import pandas as pd
 import numpy as np
 import xgboost as xgb
@@ -10,14 +11,16 @@ from sklearn.metrics import (mean_absolute_error,
                              r2_score)
 import warnings
 
+from ceemdan_common import feature_columns_for, natural_imf_targets, use_ridge_for_residue
+
 warnings.filterwarnings("ignore")
 
 # =============================================================================
 # CEEMDAN-XGBoost Pipeline  --  Step 3: Evaluation & Reconstruction
 # =============================================================================
-# Each trained sub-model predicts its own IMF component on the test set.
-# The individual predictions are then **summed** (multi-scale fusion) to
-# reconstruct the final predicted gold price.
+# IMF targets come from CEEMDAN on Gold_Close_LogReturn; sub-models predict stationary IMFs.
+# Predictions are summed to a predicted log return, then mapped to price via P_t = P_{t-1} * exp(r_t)
+# (same differencing / inversion principle as Architecture A).
 #
 # Metrics reported: MAE, MAPE, MSE, RMSE, R-squared
 # The results are also compared against the existing ARIMA baseline and
@@ -51,10 +54,7 @@ df_imf = pd.read_csv(
 )
 print(f"[OK] Datasets loaded")
 
-# Identify IMF target columns
-imf_targets = [c for c in df_imf.columns
-               if (c.startswith('IMF') or c == 'Residue')
-               and '_' not in c]
+imf_targets = natural_imf_targets(df_imf.columns)
 print(f"  Components: {imf_targets}")
 
 # --- 3. TEST SPLIT ---
@@ -64,29 +64,41 @@ actual_prices = df_master.loc[test.index, 'Gold_Close']
 # --- 4. LOAD SUB-MODELS & PREDICT PER COMPONENT ---
 print("\nGenerating per-component predictions on the test set...")
 
+ordered = imf_targets
 component_preds = {}
 for target in imf_targets:
-    model_path = os.path.join(MODELS_DIR, f'ceemdan_xgb_{target.lower()}.json')
+    feature_cols = feature_columns_for(df_imf, target, "pure", ordered)
+
+    if target == "Residue" and use_ridge_for_residue():
+        ridge_path = os.path.join(MODELS_DIR, "ceemdan_pure_ridge_residue.joblib")
+        if not os.path.exists(ridge_path):
+            print(f"  [!]  Ridge residue not found: {ridge_path}")
+            continue
+        ridge = joblib.load(ridge_path)
+        preds = ridge.predict(test[feature_cols])
+        component_preds[target] = pd.Series(preds, index=test.index)
+        print(f"  [OK] {target}  Ridge predicted ({len(preds)} days)")
+        continue
+
+    model_path = os.path.join(MODELS_DIR, f"ceemdan_xgb_{target.lower()}.json")
     if not os.path.exists(model_path):
         print(f"  [!]  Model not found for {target}: {model_path}")
         continue
 
-    feature_cols = [c for c in df_imf.columns if c.startswith(target + '_')]
-    X_test = test[feature_cols]
-
     model = xgb.XGBRegressor()
     model.load_model(model_path)
-
-    preds = model.predict(X_test)
+    preds = model.predict(test[feature_cols])
     component_preds[target] = pd.Series(preds, index=test.index)
     print(f"  [OK] {target}  predicted ({len(preds)} days)")
 
-# --- 5. MULTI-SCALE FUSION (Reconstruction) ---
-print("\nReconstructing final price forecast via multi-scale fusion...")
+# --- 5. MULTI-SCALE FUSION (log-return IMF sum -> price) ---
+print("\nReconstructing price from summed IMF predictions (log-return / differencing inversion)...")
 
-# Sum all component predictions -> reconstructed gold price
-pred_sum = pd.DataFrame(component_preds).sum(axis=1)
-ceemdan_price_predictions = pred_sum  # already in price space (IMFs sum to price)
+predicted_log_returns = pd.DataFrame(component_preds).sum(axis=1)
+yesterday_price = df_master.loc[test.index, "Gold_Close"].shift(1)
+last_val_date = df_master[:TRAIN_VAL_END].index[-1]
+yesterday_price.iloc[0] = df_master.loc[last_val_date, "Gold_Close"]
+ceemdan_price_predictions = yesterday_price * np.exp(predicted_log_returns)
 
 print(f"  Reconstruction range: ${ceemdan_price_predictions.min():.2f} - ${ceemdan_price_predictions.max():.2f}")
 

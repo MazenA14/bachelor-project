@@ -1,4 +1,5 @@
 import os
+import joblib
 import pandas as pd
 import numpy as np
 import xgboost as xgb
@@ -10,14 +11,15 @@ from sklearn.metrics import (mean_absolute_error,
                              r2_score)
 import warnings
 
+from ceemdan_common import feature_columns_for, natural_imf_targets, use_ridge_for_residue
+
 warnings.filterwarnings("ignore")
 
 # =============================================================================
 # CEEMDAN-XGBoost Pipeline (ENRICHED)  --  Step 3b: Evaluation
 # =============================================================================
-# Each enriched sub-model predicts its own IMF component on the test set.
-# The individual predictions are summed (multi-scale fusion) to reconstruct
-# the final predicted gold price.
+# IMFs are from CEEMDAN on Gold_Close_LogReturn; summed predictions yield a forecast log return,
+# then price is reconstructed via P_t = P_{t-1} * exp(r_t) (Architecture A–style inversion).
 #
 # This variant uses enriched sub-models that had access to exogenous
 # macro-economic features during training, closing the information gap
@@ -52,18 +54,8 @@ df_imf = pd.read_csv(
 )
 print(f"[OK] Datasets loaded")
 
-# Identify IMF target columns
-imf_targets = [c for c in df_imf.columns
-               if (c.startswith('IMF') or c == 'Residue')
-               and '_' not in c]
+imf_targets = natural_imf_targets(df_imf.columns)
 print(f"  Components: {imf_targets}")
-
-# Identify shared exogenous feature columns (same logic as training)
-exog_features = [c for c in df_imf.columns
-                 if not c.startswith('IMF')
-                 and c != 'Residue'
-                 and not c.startswith('Residue_')
-                 and c != 'Gold_Close']
 
 # --- 3. TEST SPLIT ---
 test = df_imf[TEST_START:]
@@ -72,31 +64,42 @@ actual_prices = df_master.loc[test.index, 'Gold_Close']
 # --- 4. LOAD ENRICHED SUB-MODELS & PREDICT PER COMPONENT ---
 print("\nGenerating per-component predictions (enriched models)...")
 
+ordered = imf_targets
 component_preds = {}
 for target in imf_targets:
-    model_path = os.path.join(MODELS_DIR, f'ceemdan_enriched_xgb_{target.lower()}.json')
+    feature_cols = feature_columns_for(df_imf, target, "enriched", ordered)
+
+    if target == "Residue" and use_ridge_for_residue():
+        ridge_path = os.path.join(MODELS_DIR, "ceemdan_enriched_ridge_residue.joblib")
+        if not os.path.exists(ridge_path):
+            print(f"  [!]  Ridge residue not found: {ridge_path}")
+            continue
+        ridge = joblib.load(ridge_path)
+        preds = ridge.predict(test[feature_cols])
+        component_preds[target] = pd.Series(preds, index=test.index)
+        print(f"  [OK] {target}  Ridge predicted ({len(preds)} days)")
+        continue
+
+    model_path = os.path.join(MODELS_DIR, f"ceemdan_enriched_xgb_{target.lower()}.json")
     if not os.path.exists(model_path):
         print(f"  [!]  Model not found for {target}: {model_path}")
         continue
 
-    # Build feature set: IMF-own features + exogenous
-    imf_own_features = [c for c in df_imf.columns if c.startswith(target + '_')]
-    feature_cols = imf_own_features + exog_features
-    X_test = test[feature_cols]
-
     model = xgb.XGBRegressor()
     model.load_model(model_path)
-
-    preds = model.predict(X_test)
+    preds = model.predict(test[feature_cols])
     component_preds[target] = pd.Series(preds, index=test.index)
     print(f"  [OK] {target}  predicted ({len(preds)} days, {len(feature_cols)} features)")
 
-# --- 5. MULTI-SCALE FUSION (Reconstruction) ---
-print("\nReconstructing final price forecast via multi-scale fusion...")
+# --- 5. MULTI-SCALE FUSION (log-return -> price) ---
+print("\nReconstructing price from IMF log-return predictions (differencing inversion)...")
 
-# Sum all component predictions -> reconstructed gold price
-pred_sum = pd.DataFrame(component_preds).sum(axis=1)
-ceemdan_enriched_predictions = pred_sum  # already in price space (IMFs sum to price)
+# IMF CEEMDAN core is log-return; sum IMF preds -> predicted log return -> invert to price (Arch A style).
+predicted_log_returns = pd.DataFrame(component_preds).sum(axis=1)
+yesterday_price = df_master.loc[test.index, "Gold_Close"].shift(1)
+last_val_date = df_master[:TRAIN_VAL_END].index[-1]
+yesterday_price.iloc[0] = df_master.loc[last_val_date, "Gold_Close"]
+ceemdan_enriched_predictions = yesterday_price * np.exp(predicted_log_returns)
 
 print(f"  Reconstruction range: ${ceemdan_enriched_predictions.min():.2f} - ${ceemdan_enriched_predictions.max():.2f}")
 
@@ -124,26 +127,34 @@ print("-" * 60)
 
 comparison_models = {}
 
-# CEEMDAN-XGBoost Pure (IMF-only, variant A)
+# CEEMDAN-XGBoost Pure (log-return IMFs; invert to price like Architecture A)
 try:
     df_imf_pure = pd.read_csv(
         os.path.join(FINAL_DIR, '02_ceemdan_imfs_dataset.csv'),
         index_col='Date', parse_dates=['Date']
     )
-    imf_targets_pure = [c for c in df_imf_pure.columns
-                        if (c.startswith('IMF') or c == 'Residue')
-                        and '_' not in c]
+    ordered_pure = natural_imf_targets(df_imf_pure.columns)
     test_pure = df_imf_pure[TEST_START:]
     pure_preds = {}
-    for target in imf_targets_pure:
+    for target in ordered_pure:
+        fc = feature_columns_for(df_imf_pure, target, "pure", ordered_pure)
+        if target == "Residue" and use_ridge_for_residue():
+            rp = os.path.join(MODELS_DIR, "ceemdan_pure_ridge_residue.joblib")
+            if not os.path.exists(rp):
+                continue
+            ridge = joblib.load(rp)
+            pure_preds[target] = pd.Series(ridge.predict(test_pure[fc]), index=test_pure.index)
+            continue
         mp = os.path.join(MODELS_DIR, f'ceemdan_xgb_{target.lower()}.json')
         if not os.path.exists(mp):
             continue
-        fc = [c for c in df_imf_pure.columns if c.startswith(target + '_')]
         m = xgb.XGBRegressor()
         m.load_model(mp)
         pure_preds[target] = pd.Series(m.predict(test_pure[fc]), index=test_pure.index)
-    pure_price = pd.DataFrame(pure_preds).sum(axis=1)
+    pure_logret = pd.DataFrame(pure_preds).sum(axis=1)
+    yp = df_master.loc[pure_logret.index, 'Gold_Close'].shift(1)
+    yp.iloc[0] = df_master.loc[last_val_date, 'Gold_Close']
+    pure_price = yp * np.exp(pure_logret)
     rmse_pure = root_mean_squared_error(actual_prices, pure_price)
     mape_pure = mean_absolute_percentage_error(actual_prices, pure_price)
     mae_pure = mean_absolute_error(actual_prices, pure_price)

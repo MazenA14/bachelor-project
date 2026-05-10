@@ -1,4 +1,5 @@
 import os
+import joblib
 import pandas as pd
 import numpy as np
 import xgboost as xgb
@@ -9,6 +10,8 @@ from sklearn.metrics import (mean_absolute_error,
                              root_mean_squared_error,
                              r2_score)
 import warnings
+
+from ceemdan_common import feature_columns_for, natural_imf_targets, use_ridge_for_residue
 
 warnings.filterwarnings("ignore")
 
@@ -49,16 +52,7 @@ df_imf = pd.read_csv(
 )
 print(f"[OK] Datasets loaded")
 
-# Identify IMF target columns
-imf_targets = [c for c in df_imf.columns
-               if (c.startswith('IMF') or c == 'Residue')
-               and '_' not in c]
-
-exog_features = [c for c in df_imf.columns
-                 if not c.startswith('IMF')
-                 and c != 'Residue'
-                 and not c.startswith('Residue_')
-                 and c not in ['Gold_Close', 'Gold_Close_LogReturn']]
+imf_targets = natural_imf_targets(df_imf.columns)
 
 # --- 3. TEST SPLIT ---
 test = df_imf[TEST_START:]
@@ -67,21 +61,30 @@ actual_prices = df_master.loc[test.index, 'Gold_Close']
 # --- 4. LOAD STATIONARY SUB-MODELS & PREDICT PER COMPONENT ---
 print("\nGenerating per-component stationary predictions...")
 
+ordered = imf_targets
 component_preds = {}
 for target in imf_targets:
-    model_path = os.path.join(MODELS_DIR, f'ceemdan_stationary_xgb_{target.lower()}.json')
+    feature_cols = feature_columns_for(df_imf, target, "stationary", ordered)
+
+    if target == "Residue" and use_ridge_for_residue():
+        ridge_path = os.path.join(MODELS_DIR, "ceemdan_stationary_ridge_residue.joblib")
+        if not os.path.exists(ridge_path):
+            print(f"  [!]  Ridge residue not found: {ridge_path}")
+            continue
+        ridge = joblib.load(ridge_path)
+        preds = ridge.predict(test[feature_cols])
+        component_preds[target] = pd.Series(preds, index=test.index)
+        print(f"  [OK] {target} Ridge predicted")
+        continue
+
+    model_path = os.path.join(MODELS_DIR, f"ceemdan_stationary_xgb_{target.lower()}.json")
     if not os.path.exists(model_path):
         print(f"  [!]  Model not found for {target}: {model_path}")
         continue
 
-    imf_own_features = [c for c in df_imf.columns if c.startswith(target + '_')]
-    feature_cols = imf_own_features + exog_features
-    X_test = test[feature_cols]
-
     model = xgb.XGBRegressor()
     model.load_model(model_path)
-
-    preds = model.predict(X_test)
+    preds = model.predict(test[feature_cols])
     component_preds[target] = pd.Series(preds, index=test.index)
     print(f"  [OK] {target} predicted")
 
@@ -166,15 +169,22 @@ try:
         os.path.join(FINAL_DIR, '02b_ceemdan_enriched_dataset.csv'),
         index_col='Date', parse_dates=['Date']
     )
-    imf_targets_en = [c for c in df_imf_en.columns if (c.startswith('IMF') or c == 'Residue') and '_' not in c]
+    ordered_en = natural_imf_targets(df_imf_en.columns)
     test_en = df_imf_en[TEST_START:]
-    exog_en = [c for c in df_imf_en.columns if not c.startswith('IMF') and c != 'Residue' and not c.startswith('Residue_') and c != 'Gold_Close']
-    
+
     en_preds = {}
-    for target in imf_targets_en:
-        mp = os.path.join(MODELS_DIR, f'ceemdan_enriched_xgb_{target.lower()}.json')
-        if not os.path.exists(mp): continue
-        fc = [c for c in df_imf_en.columns if c.startswith(target + '_')] + exog_en
+    for target in ordered_en:
+        fc = feature_columns_for(df_imf_en, target, "enriched", ordered_en)
+        if target == "Residue" and use_ridge_for_residue():
+            rp = os.path.join(MODELS_DIR, "ceemdan_enriched_ridge_residue.joblib")
+            if not os.path.exists(rp):
+                continue
+            ridge = joblib.load(rp)
+            en_preds[target] = pd.Series(ridge.predict(test_en[fc]), index=test_en.index)
+            continue
+        mp = os.path.join(MODELS_DIR, f"ceemdan_enriched_xgb_{target.lower()}.json")
+        if not os.path.exists(mp):
+            continue
         m = xgb.XGBRegressor()
         m.load_model(mp)
         en_preds[target] = pd.Series(m.predict(test_en[fc]), index=test_en.index)

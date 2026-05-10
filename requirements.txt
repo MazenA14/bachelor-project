@@ -2,3 +2,10 @@ python-dotenv
 yfinance
 fredapi
 pandas
+numpy
+matplotlib
+scikit-learn
+xgboost
+PyEMD
+optuna
+joblib
