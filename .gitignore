@@ -21,3 +21,8 @@ plots-energy/
 
 # Python cache
 src-extra-variables/__pycache__
+
+# Results
+results-energy/
+results-crops/
+results-extra-variables/
